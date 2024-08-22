@@ -13,6 +13,7 @@ library(ggplot2)
 library(designr)
 library(dplyr )
 library(stringr)
+library(simr)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -102,9 +103,7 @@ server <- function(input, output) {
       input_list <- lapply(1:new_count, function(i) {
         # Use the existing value if it exists, otherwise set to an empty string
         fluidRow(
-              selectInput(paste("wob", i), "Within or Between:", 
-                      choices = c("Within",
-                                  "Between")),
+          selectInput(paste("wob", i), "Within or Between:", choices = c("Within", "Between")),
              column(4, textInput(paste0("FE", i, "name", sep = "_"), value = paste("Condition", i), label = "Label")),
              column(4, textInput(paste0("FE", i, "levels", sep = "_"), value = "A, B", label = "Levels")),
              column(4, textInput(paste0("FE", i, "ES", sep = "_"), value = "0.2", label = "Effect sizes")),
@@ -144,11 +143,13 @@ server <- function(input, output) {
     }
   })
   
-  
   # Observe changes to the text inputs and store their values
   observe({
     if (text_input_counter() == 0){
-      FE_names <- reactiveValues()}
+      # reset lists to being empty
+      FE_names <- reactiveValues()
+      FE_levels <- reactiveValues()
+      FE_ESs <- reactiveValues()}
     else{
     lapply(1:text_input_counter(), function(i) {
       FE_names[[paste0("FE_name", i)]] <- input[[paste0("FE", i, "name", sep = "_")]]
@@ -163,21 +164,15 @@ server <- function(input, output) {
   output$x <- renderText({text_input_counter()})
   
   output$y <- renderText({  
-    FE_names[["FE_name1"]]
+    toString(fixed_effects())
     })
   
+  fixed_effects <- reactive({
+    as.numeric(c(list(0,input$FE_0_ES),reactiveValuesToList(FE_ESs)))
+  })
   
   # Make dataset
   getDF <- reactive({
-    # design <-
-    #   fixed.factor(input$FE1_name, levels=str_split_1(input$FE1_levels, ",")) + # fixed effect
-    #   random.factor(input$RE1_name, instances= input$RE1_N)        # random effect
-    # 
-    # data <- design.codes(design)
-    # names(data) <- c("RE", "FE")
-    # data
-    
-    
 
     # Initialize the design with the first fixed effect
     current_design <- fixed.factor(input$FE_0_name, levels = str_split_1(input$FE_0_levels, ","))
@@ -198,15 +193,15 @@ server <- function(input, output) {
     })
   
   
-  
-  
 
   make_model <- reactive({
-    fixed = c(0, as.numeric(str_split_1(input$FE1_ES, ",")))
-    rand = list(input$RE1_var)
+    #fixed = c(0, as.numeric(str_split_1(input$FE_0_ES, ",")))
+    fixed = unlist(fixed_effects(), use.names = F)
+    #rand = list(input$RE_0_var)
+    rand = list(0.4)
     res = input$Res_var
     
-    model <- makeLmer(y ~ FE + (1 |RE),
+    model <- makeLmer(y ~ Condition + (1 |Subject),
                                          fixef=fixed,
                                          VarCorr=rand,
                                          sigma=res,
@@ -231,7 +226,7 @@ server <- function(input, output) {
   output$model <- renderPrint({
     
     # check for errors
-    if (length(str_split_1(input$FE1_levels, ",")) != length(str_split_1(input$FE1_ES, ",")) + 1) {
+    if (length(str_split_1(input$FE_0_levels, ",")) != length(str_split_1(input$FE_0_ES, ",")) + 1) {
       stop("Incorrect number of effect sizes for levels of factor")
     }
     
