@@ -26,29 +26,12 @@ ui <- fluidPage(
     sidebarPanel(
       h3("Enter parameters below."),
       h3("Fixed effects:"),
-      selectInput("wob0", "Within or Between:", 
-                  choices = c("Within",
-                              "Between")),
       fluidRow(
-      column(4, textInput("FE_0_name", value = "Condition", label = "Label")),
-      column(4, textInput("FE_0_levels", value = "A, B", label = "Levels")),
+      column(4, textInput("FE_0_name", value = "A", label = "Label")),
+      column(4, textInput("FE_0_levels", value = "A1, A2", label = "Levels")),
       column(4, textInput("FE_0_ES", value = "0.2", label = "Effect sizes")),
       ),
       
-      
-
-        # conditionalPanel(
-        # condition = "input.addnewFE",
-        # selectInput("wob2", "Within or Between:", 
-        #             choices = c("Within",
-        #                         "Between")),
-        # fluidRow(
-        #   column(4, textInput("FE2_name", value = "Condition", label = "Label")),
-        #   column(4, textInput("FE2_levels", value = "A, B", label = "Levels")),
-        #   column(4, textInput("FE2_ES", value = "0.2", label = "Effect sizes")),
-        # ),
-        # ),
-        
       uiOutput("dynamic_text_inputs"),
       
       fluidRow(
@@ -103,9 +86,8 @@ server <- function(input, output) {
       input_list <- lapply(1:new_count, function(i) {
         # Use the existing value if it exists, otherwise set to an empty string
         fluidRow(
-          selectInput(paste("wob", i), "Within or Between:", choices = c("Within", "Between")),
-             column(4, textInput(paste0("FE", i, "name", sep = "_"), value = paste("Condition", i), label = "Label")),
-             column(4, textInput(paste0("FE", i, "levels", sep = "_"), value = "A, B", label = "Levels")),
+             column(4, textInput(paste0("FE", i, "name", sep = "_"), value = toupper(letters[i+1]), label = "Label")),
+             column(4, textInput(paste0("FE", i, "levels", sep = "_"), value = paste0(toupper(letters[i+1]), c(1,2), collapse = ", "), label = "Levels")),
              column(4, textInput(paste0("FE", i, "ES", sep = "_"), value = "0.2", label = "Effect sizes")),
            )
       })
@@ -130,11 +112,8 @@ server <- function(input, output) {
         input_list <- lapply(1:new_count, function(i) {
           # Use the existing value if it exists, otherwise set to an empty string
           fluidRow(
-            selectInput(paste("wob", i), "Within or Between:", 
-                        choices = c("Within",
-                                    "Between")),
-            column(4, textInput(paste0("FE", i, "name", sep = "_"), value = paste("Condition", i), label = "Label")),
-            column(4, textInput(paste0("FE", i, "levels", sep = "_"), value = "A, B", label = "Levels")),
+            column(4, textInput(paste0("FE", i, "name", sep = "_"), value = toupper(letters[i+1]), label = "Label")),
+            column(4, textInput(paste0("FE", i, "levels", sep = "_"),value = paste0(toupper(letters[i+1]), collapse = ", "), label = "Levels")),
             column(4, textInput(paste0("FE", i, "ES", sep = "_"), value = "0.2", label = "Effect sizes")),
           )
         })
@@ -167,8 +146,12 @@ server <- function(input, output) {
     toString(fixed_effects())
     })
   
-  fixed_effects <- reactive({
+  fixed_effect_sizes <- reactive({
     as.numeric(c(list(0,input$FE_0_ES),reactiveValuesToList(FE_ESs)))
+  })
+  
+  fixed_effects <- reactive({
+    c("A", reactiveValuesToList(FE_names))
   })
   
   # Make dataset
@@ -180,7 +163,8 @@ server <- function(input, output) {
     # Add additional fixed effects dynamically
     if (text_input_counter() > 0) {
       for (i in 1:text_input_counter()) {
-        current_design <- current_design + fixed.factor(FE_names[[paste0("FE_name", i)]], levels = str_split_1(FE_levels[[paste0("FE_level", i)]], ","))
+        current_design <- current_design + fixed.factor(FE_names[[paste0("FE_name", i)]], 
+                                                        levels = str_split_1(FE_levels[[paste0("FE_level", i)]], ","))
       }
     }
 
@@ -195,17 +179,15 @@ server <- function(input, output) {
   
 
   make_model <- reactive({
-    #fixed = c(0, as.numeric(str_split_1(input$FE_0_ES, ",")))
-    fixed = unlist(fixed_effects(), use.names = F)
-    #rand = list(input$RE_0_var)
-    rand = list(0.4)
+    fixef = unlist(fixed_effect_sizes(), use.names = F)
+    rand = list(input$RE1_var)
+    #rand = list(0.4)
     res = input$Res_var
+    fixed= str_c(fixed_effects(), collapse = "+")
+    formula = as.formula(paste0("y ~ ", fixed, "+ (1 |Subject)"))
     
-    model <- makeLmer(y ~ Condition + (1 |Subject),
-                                         fixef=fixed,
-                                         VarCorr=rand,
-                                         sigma=res,
-                                         data=getDF())
+    
+    model <- makeLmer(formula, fixef=fixef, VarCorr=rand, sigma=res, data=getDF())
   })
   
   output$designTab <- renderDataTable({
