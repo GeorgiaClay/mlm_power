@@ -6,12 +6,8 @@ library(dplyr)
 library(stringr)
 library(simr)
 
-
-
 # Define server logic
 shinyServer(function(input, output) {
-
-  
   
   #### Fixed effects ####
   
@@ -22,6 +18,7 @@ shinyServer(function(input, output) {
   FE_counter <- reactiveVal(0)
   
   # Reactive value to store the existing values of text inputs
+  
   FE_names <- reactiveValues()
   FE_levels <- reactiveValues()
   FE_ESs <- reactiveValues()
@@ -30,6 +27,7 @@ shinyServer(function(input, output) {
   FE_corrs <- reactiveValues()
   
   # Observe the button click and add a new text input
+  
   observeEvent(input$addnewFE, {
     # Increment the counter
     new_count_FE <- FE_counter() + 1
