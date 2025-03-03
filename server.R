@@ -107,7 +107,6 @@ shinyServer(function(input, output) {
     })}
   })
   
-  
   #### Random effects ####
   
   output$RE_dropdown0 <- renderUI({
