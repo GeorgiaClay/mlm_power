@@ -2,8 +2,6 @@
 label_with_subheading <- function(main_label, subheading) {
   HTML(paste0(main_label, "<br><span class='subheading'>", subheading, "</span>"))
 }
-
-
 # Define UI
 shinyUI(fluidPage(
   useShinyjs(),
